@@ -3,9 +3,13 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Purchasing;
 using UnityEngine.Purchasing.Security;
+using Server;
 
 public class IAPManager : MonoBehaviour, IStoreListener
 {
+    private const int CLIENT_ID = 0;
+
+
     public static IAPManager instance;
 
     private static IStoreController m_StoreController;
@@ -16,9 +20,13 @@ public class IAPManager : MonoBehaviour, IStoreListener
 
 
     //Step 1 create your products
-    private string[] golds = new string[1]
+    private string[] golds = new string[5]
     {
-        "gold11"
+        "gold11",
+        "gold12",
+        "gold13",
+        "gold14",
+        "gold15",
     };
 
 
@@ -62,26 +70,23 @@ public class IAPManager : MonoBehaviour, IStoreListener
         {
             var result = validator.Validate(args.purchasedProduct.receipt);
             Debug.Log("Receipt is valid. Contents:");
+            string productId = args.purchasedProduct.definition.id;
             foreach (IPurchaseReceipt productReceipt in result)
             {
                 foreach (var gold in golds)
                 {
-                    if (string.Equals(args.purchasedProduct.definition.id, gold, StringComparison.Ordinal))
+                    if (string.Equals(productId, gold, StringComparison.Ordinal))
                     {
                         int goldCount = int.Parse(gold.Replace("gold", ""));
                         string receipt = args.purchasedProduct.receipt;
 
                         File.WriteAllText(Application.persistentDataPath + "/receipt.txt", receipt);
 
-                        string formatedReceipt = receipt.Replace("\\\\\\", "");
-                        string startPhrase = "purchaseToken\":\"";
-                        int startIndex = formatedReceipt.IndexOf(startPhrase);
-                        int finishIndex = formatedReceipt.IndexOf("\",\"", startIndex + startPhrase.Length);
-                        string purchaseToken = formatedReceipt.Substring(startPhrase.Length + startIndex, finishIndex - (startPhrase.Length + startIndex));
+                        string purchaseToken = GetPurchaseTokenFromReceipt(receipt);
 
                         File.WriteAllText(Application.persistentDataPath + "/purchaseToken.txt", purchaseToken);
 
-                        ServerSideValidation.Validate(purchaseToken);
+                        IapValidation.Instance.GiveProduct(CLIENT_ID, productId, purchaseToken);
 
                         OnPurchased?.Invoke(args);
 
@@ -145,6 +150,17 @@ public class IAPManager : MonoBehaviour, IStoreListener
         {
             Debug.Log("BuyProductID FAIL. Not initialized.");
         }
+    }
+
+    private string GetPurchaseTokenFromReceipt(string receipt)
+    {
+        string formatedReceipt = receipt.Replace("\\\\\\", "");
+        string startPhrase = "purchaseToken\":\"";
+        int startIndex = formatedReceipt.IndexOf(startPhrase);
+        int finishIndex = formatedReceipt.IndexOf("\",\"", startIndex + startPhrase.Length);
+        string purchaseToken = formatedReceipt.Substring(startPhrase.Length + startIndex, finishIndex - (startPhrase.Length + startIndex));
+
+        return purchaseToken;
     }
 
     public void RestorePurchases()

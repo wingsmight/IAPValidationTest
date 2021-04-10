@@ -8,7 +8,7 @@ public class GoldAmountView : MonoBehaviour
     [SerializeField] private TextMeshProUGUI amountText;
 
 
-    private int amount;
+    private int amount = 0;
 
 
     public void Show()
