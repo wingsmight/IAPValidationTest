@@ -15,35 +15,37 @@ namespace Server
         private const string ACCESS_TOKEN_PATH = "C:\\Server\\accessToken.json"; //pc-api json file
 
 
-        [SerializeField] private GoldAmountView goldAmountView;
-
+        public delegate void OnSuccessValidatedHandler(int clientId, string productId);
 
         private GoogleCredential accessTokenCredential;
-        private Dictionary<int, string> clientTokenDictionary = new Dictionary<int, string>();
+        private List<string> usedTokens;
 
 
         private void Start()
         {
+            Load();
+
             accessTokenCredential = GoogleCredential.FromFile(ACCESS_TOKEN_PATH);
+        }
+        private void OnApplicationQuit()
+        {
+            Save();
         }
 
 
-        public void GiveProduct(int clientId, string productId, string purchaseToken)
+        public void Validate(int clientId, string productId, string purchaseToken, OnSuccessValidatedHandler OnSuccessValidated)
         {
-            if (clientTokenDictionary.ContainsKey(clientId))
+            if (usedTokens.Contains(purchaseToken))
             {
-                if (clientTokenDictionary[clientId] == purchaseToken)
-                {
-                    return;
-                }
+                return;
             }
 
             if (IsValidated(productId, purchaseToken))
             {
-                clientTokenDictionary.Add(clientId, purchaseToken);
+                usedTokens.Add(purchaseToken);
 
                 //give product:
-
+                OnSuccessValidated?.Invoke(clientId, productId);
             }
         }
 
@@ -70,6 +72,14 @@ namespace Server
             }
 
             return true;
+        }
+        private void Save()
+        {
+
+        }
+        private void Load()
+        {
+
         }
     }
 }

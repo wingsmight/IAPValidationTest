@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Purchasing;
 using UnityEngine.Purchasing.Security;
 using Server;
+using System.Collections.Generic;
 
 public class IAPManager : MonoBehaviour, IStoreListener
 {
@@ -15,12 +16,13 @@ public class IAPManager : MonoBehaviour, IStoreListener
     private static IStoreController m_StoreController;
     private static IExtensionProvider m_StoreExtensionProvider;
 
-    public delegate void OnPurchasedHandler(PurchaseEventArgs args);
+    public delegate void OnPurchasedHandler(string productId);
     public event OnPurchasedHandler OnPurchased;
 
 
     //Step 1 create your products
-    private string[] golds = new string[5]
+    private List<string> products = new List<string>();
+    private string[] golds = new string[]
     {
         "gold11",
         "gold12",
@@ -37,9 +39,9 @@ public class IAPManager : MonoBehaviour, IStoreListener
         var builder = ConfigurationBuilder.Instance(StandardPurchasingModule.Instance());
 
         //Step 2 choose if your product is a consumable or non consumable
-        foreach (var gold in golds)
+        foreach (var product in products)
         {
-            builder.AddProduct(gold, ProductType.Consumable);
+            builder.AddProduct(product, ProductType.Consumable);
         }
 
         UnityPurchasing.Initialize(this, builder);
@@ -53,9 +55,9 @@ public class IAPManager : MonoBehaviour, IStoreListener
 
 
     //Step 3 Create methods
-    public void BuyGold(int amount)
+    public void BuyProduct(string productName, int amount)
     {
-        BuyProductID("gold" + amount);
+        BuyProductID(productName + amount);
     }
 
 
@@ -73,22 +75,17 @@ public class IAPManager : MonoBehaviour, IStoreListener
             string productId = args.purchasedProduct.definition.id;
             foreach (IPurchaseReceipt productReceipt in result)
             {
-                foreach (var gold in golds)
+                foreach (var product in products)
                 {
-                    if (string.Equals(productId, gold, StringComparison.Ordinal))
+                    if (string.Equals(productId, product, StringComparison.Ordinal))
                     {
-                        int goldCount = int.Parse(gold.Replace("gold", ""));
                         string receipt = args.purchasedProduct.receipt;
-
-                        File.WriteAllText(Application.persistentDataPath + "/receipt.txt", receipt);
-
                         string purchaseToken = GetPurchaseTokenFromReceipt(receipt);
 
-                        File.WriteAllText(Application.persistentDataPath + "/purchaseToken.txt", purchaseToken);
+                        OnPurchased?.Invoke(productId);
 
-                        IapValidation.Instance.GiveProduct(CLIENT_ID, productId, purchaseToken);
-
-                        OnPurchased?.Invoke(args);
+                        //exucute it on server:
+                        IapValidation.Instance.Validate(CLIENT_ID, productId, purchaseToken, null);
 
                         return PurchaseProcessingResult.Complete;
                     }
@@ -117,6 +114,8 @@ public class IAPManager : MonoBehaviour, IStoreListener
     private void Awake()
     {
         TestSingleton();
+
+        products.AddRange(golds);
     }
 
     void Start()
